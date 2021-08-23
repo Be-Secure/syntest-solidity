@@ -6,8 +6,8 @@ import { SolidityCFGFactory } from "../../graph/SolidityCFGFactory";
 import { ContractMetadata } from "./map/ContractMetadata";
 import { ContractFunction } from "./map/ContractFunction";
 import { CFG } from "syntest-framework";
-import {Target} from "./Target";
-import {DependencyAnalyzer} from "./dependency/DependencyAnalyzer";
+import { Target } from "./Target";
+import { DependencyAnalyzer } from "./dependency/DependencyAnalyzer";
 
 /**
  * Pool for retrieving and caching expensive processing calls.
@@ -23,7 +23,7 @@ export class TargetPool {
   protected _controlFlowGraphGenerator: SolidityCFGFactory;
 
   // Mapping: filepath -> target name -> target
-  protected _targets: Map<string, Map<string, Target>>
+  protected _targets: Map<string, Map<string, Target>>;
 
   // Mapping: filepath -> source code
   protected _sources: Map<string, string>;
@@ -70,10 +70,7 @@ export class TargetPool {
    * @param targetPath The path to the target file
    * @param targetName the name of the target
    */
-  createTarget(
-      targetPath: string,
-      targetName: string
-  ): Target {
+  createTarget(targetPath: string, targetName: string): Target {
     const absoluteTargetPath = path.resolve(targetPath);
 
     // Get source, AST, FunctionMap, and CFG for target under test
@@ -92,30 +89,30 @@ export class TargetPool {
     const dependencies = importGraph.getNodes();
 
     const linkingGraph = analyzer.analyzeLinking(
-        importGraph,
-        context,
-        targetName
+      importGraph,
+      context,
+      targetName
     );
 
     const target = new Target(
-        absoluteTargetPath,
-        targetName,
-        source,
-        abstractSyntaxTree,
-        context,
-        functionMap,
-        controlFlowGraph,
-        linkingGraph,
-        dependencies
+      absoluteTargetPath,
+      targetName,
+      source,
+      abstractSyntaxTree,
+      context,
+      functionMap,
+      controlFlowGraph,
+      linkingGraph,
+      dependencies
     );
 
     if (this._targets.has(targetPath)) {
-      this._targets.set(targetPath, new Map<string, Target>())
+      this._targets.set(targetPath, new Map<string, Target>());
     }
 
-    this._targets.get(targetPath).set(targetName, target)
+    this._targets.get(targetPath).set(targetName, target);
 
-    return target
+    return target;
   }
 
   getSource(targetPath: string): string {
@@ -184,7 +181,8 @@ export class TargetPool {
 
     if (this._targets.has(absoluteTargetPath)) {
       if (this._targets.get(absoluteTargetPath).has(targetName)) {
-        return this._targets.get(absoluteTargetPath).get(targetName).controlFlowGraph
+        return this._targets.get(absoluteTargetPath).get(targetName)
+          .controlFlowGraph;
       }
     }
 

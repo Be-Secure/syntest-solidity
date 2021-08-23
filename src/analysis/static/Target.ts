@@ -5,7 +5,7 @@ import { DependencyAnalyzer } from "./dependency/DependencyAnalyzer";
 import { TargetContext } from "./dependency/TargetContext";
 import { ContractMetadata } from "./map/ContractMetadata";
 import { Graph } from "./Graph";
-import {ContractFunction} from "./map/ContractFunction";
+import { ContractFunction } from "./map/ContractFunction";
 
 /**
  * Target system under test.
@@ -18,11 +18,11 @@ export class Target {
   protected readonly _path: string;
   protected readonly _name: string;
 
-  private _source: string
-  private _abstractSyntaxTree: any
+  private _source: string;
+  private _abstractSyntaxTree: any;
 
   // Mapping: name -> Target
-  private _dependencies: string[]
+  private _dependencies: string[];
 
   private _context: TargetContext<ContractMetadata>;
 
@@ -54,7 +54,7 @@ export class Target {
     this._functions = functions;
     this._controlFlowGraph = cfg;
     this._linkingGraph = linkingGraph;
-    this._dependencies = dependencies
+    this._dependencies = dependencies;
   }
 
   get path(): string {
@@ -64,7 +64,6 @@ export class Target {
   get name(): string {
     return this._name;
   }
-
 
   get source(): string {
     return this._source;
