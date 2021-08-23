@@ -6,6 +6,8 @@ import { SolidityCFGFactory } from "../../graph/SolidityCFGFactory";
 import { ContractMetadata } from "./map/ContractMetadata";
 import { ContractFunction } from "./map/ContractFunction";
 import { CFG } from "syntest-framework";
+import {Target} from "./Target";
+import {DependencyAnalyzer} from "./dependency/DependencyAnalyzer";
 
 /**
  * Pool for retrieving and caching expensive processing calls.
@@ -19,6 +21,9 @@ export class TargetPool {
   protected _abstractSyntaxTreeGenerator: ASTGenerator;
   protected _targetMapGenerator: TargetMapGenerator;
   protected _controlFlowGraphGenerator: SolidityCFGFactory;
+
+  // Mapping: filepath -> target name -> target
+  protected _targets: Map<string, Map<string, Target>>
 
   // Mapping: filepath -> source code
   protected _sources: Map<string, string>;
@@ -57,6 +62,60 @@ export class TargetPool {
       Map<string, Map<string, ContractFunction>>
     >();
     this._controlFlowGraphs = new Map<string, [CFG, string[]]>();
+  }
+
+  /**
+   * Create a target from the target pool.
+   *
+   * @param targetPath The path to the target file
+   * @param targetName the name of the target
+   */
+  createTarget(
+      targetPath: string,
+      targetName: string
+  ): Target {
+    const absoluteTargetPath = path.resolve(targetPath);
+
+    // Get source, AST, FunctionMap, and CFG for target under test
+    const source = this.getSource(absoluteTargetPath);
+    const abstractSyntaxTree = this.getAST(absoluteTargetPath);
+    const functionMap = this.getFunctionMap(absoluteTargetPath, targetName);
+    const controlFlowGraph = this.getCFG(absoluteTargetPath, targetName);
+
+    // Analyze dependencies
+    const analyzer = new DependencyAnalyzer(this);
+
+    const importGraph = analyzer.analyzeImports(targetPath);
+    const context = analyzer.analyzeContext(importGraph);
+    const inheritanceGraph = analyzer.analyzeInheritance(context, targetName);
+
+    const dependencies = importGraph.getNodes();
+
+    const linkingGraph = analyzer.analyzeLinking(
+        importGraph,
+        context,
+        targetName
+    );
+
+    const target = new Target(
+        absoluteTargetPath,
+        targetName,
+        source,
+        abstractSyntaxTree,
+        context,
+        functionMap,
+        controlFlowGraph,
+        linkingGraph,
+        dependencies
+    );
+
+    if (this._targets.has(targetPath)) {
+      this._targets.set(targetPath, new Map<string, Target>())
+    }
+
+    this._targets.get(targetPath).set(targetName, target)
+
+    return target
   }
 
   getSource(targetPath: string): string {
@@ -120,23 +179,22 @@ export class TargetPool {
     }
   }
 
-  getCFG(targetPath: string): [CFG, string[]] {
+  getCFG(targetPath: string, targetName: string): CFG {
     const absoluteTargetPath = path.resolve(targetPath);
 
-    if (this._controlFlowGraphs.has(absoluteTargetPath)) {
-      return this._controlFlowGraphs.get(absoluteTargetPath);
-    } else {
-      const targetAST = this.getAST(absoluteTargetPath);
-      const cfg = this._controlFlowGraphGenerator.convertAST(
-        targetAST,
-        false,
-        false
-      );
-      this._controlFlowGraphs.set(absoluteTargetPath, [
-        cfg,
-        this._controlFlowGraphGenerator.contracts,
-      ]);
-      return [cfg, this._controlFlowGraphGenerator.contracts];
+    if (this._targets.has(absoluteTargetPath)) {
+      if (this._targets.get(absoluteTargetPath).has(targetName)) {
+        return this._targets.get(absoluteTargetPath).get(targetName).controlFlowGraph
+      }
     }
+
+    const targetAST = this.getAST(absoluteTargetPath);
+    const cfg = this._controlFlowGraphGenerator.convertAST(
+      targetAST,
+      false,
+      false
+    );
+    this._controlFlowGraphs.set(absoluteTargetPath, cfg);
+    return cfg;
   }
 }

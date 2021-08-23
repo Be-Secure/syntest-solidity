@@ -1,10 +1,11 @@
-import { SearchSubject, AbstractTestCase } from "syntest-framework";
+import { SearchSubject, AbstractTestCase, CFG } from "syntest-framework";
 import { TargetPool } from "./TargetPool";
 import * as path from "path";
 import { DependencyAnalyzer } from "./dependency/DependencyAnalyzer";
 import { TargetContext } from "./dependency/TargetContext";
 import { ContractMetadata } from "./map/ContractMetadata";
 import { Graph } from "./Graph";
+import {ContractFunction} from "./map/ContractFunction";
 
 /**
  * Target system under test.
@@ -17,111 +18,43 @@ export class Target {
   protected readonly _path: string;
   protected readonly _name: string;
 
-  // Mapping: filepath -> source
-  protected _sources: Map<string, string>;
+  private _source: string
+  private _abstractSyntaxTree: any
 
-  // Mapping: filepath -> AST
-  protected _abstractSyntaxTrees: Map<string, any>;
+  // Mapping: name -> Target
+  private _dependencies: string[]
 
-  protected _context: TargetContext<ContractMetadata>;
+  private _context: TargetContext<ContractMetadata>;
 
-  // Mapping: target name -> function name -> function
-  protected _functions: Map<string, Map<string, any>>;
+  // Mapping: function name -> function
+  private _functions: Map<string, ContractFunction>;
 
-  // Mapping: target name -> (function name -> CFG)
-  protected _controlFlowGraphs: Map<string, any>;
+  private _controlFlowGraph: CFG;
 
-  protected _linkingGraph: Graph<string>;
+  private _linkingGraph: Graph<string>;
 
-  protected _subject: SearchSubject<AbstractTestCase>;
+  private _subject: SearchSubject<AbstractTestCase>;
 
   constructor(
     targetPath: string,
     targetName: string,
-    sources: Map<string, string>,
-    ASTs: Map<string, any>,
+    source: string,
+    ast: any,
     context: TargetContext<ContractMetadata>,
-    functions: Map<string, Map<string, any>>,
-    CFGs: Map<string, any>,
-    linkingGraph: Graph<string>
+    functions: Map<string, any>,
+    cfg: CFG,
+    linkingGraph: Graph<string>,
+    dependencies: string[]
   ) {
     this._path = path.resolve(targetPath);
     this._name = targetName;
-    this._sources = sources;
-    this._abstractSyntaxTrees = ASTs;
+    this._source = source;
+    this._abstractSyntaxTree = ast;
     this._context = context;
     this._functions = functions;
-    this._controlFlowGraphs = CFGs;
+    this._controlFlowGraph = cfg;
     this._linkingGraph = linkingGraph;
-  }
-
-  /**
-   * Create a target from the target pool.
-   *
-   * @param targetPool The target pool to load the target information from
-   * @param targetPath The path to the target file
-   * @param targetName the name of the target
-   */
-  static fromPool(
-    targetPool: TargetPool,
-    targetPath: string,
-    targetName: string
-  ): Target {
-    const absoluteTargetPath = path.resolve(targetPath);
-
-    // Get source, AST, FunctionMap, and CFG for target under test
-    const sources = new Map<string, string>();
-    const abstractSyntaxTrees = new Map<string, any>();
-    const functionMaps = new Map<string, Map<string, any>>();
-    const controlFlowGraphs = new Map<string, any>();
-
-    sources.set(absoluteTargetPath, targetPool.getSource(absoluteTargetPath));
-    abstractSyntaxTrees.set(
-      absoluteTargetPath,
-      targetPool.getAST(absoluteTargetPath)
-    );
-    functionMaps.set(
-      targetName,
-      targetPool.getFunctionMap(absoluteTargetPath, targetName)
-    );
-    controlFlowGraphs.set(targetName, targetPool.getCFG(absoluteTargetPath));
-
-    // Analyze dependencies
-    const analyzer = new DependencyAnalyzer(targetPool);
-
-    const importGraph = analyzer.analyzeImports(targetPath);
-    const context = analyzer.analyzeContext(importGraph);
-    const inheritanceGraph = analyzer.analyzeInheritance(context, targetName);
-
-    const nodes = importGraph.getNodes();
-    nodes.forEach((filePath) => {
-      sources.set(filePath, targetPool.getSource(filePath));
-      abstractSyntaxTrees.set(filePath, targetPool.getAST(filePath));
-
-      context.getTargets(filePath).forEach((contractMetadata) => {
-        functionMaps.set(
-          contractMetadata.name,
-          targetPool.getFunctionMap(filePath, contractMetadata.name)
-        );
-      });
-    });
-
-    const linkingGraph = analyzer.analyzeLinking(
-      importGraph,
-      context,
-      targetName
-    );
-
-    return new Target(
-      absoluteTargetPath,
-      targetName,
-      sources,
-      abstractSyntaxTrees,
-      context,
-      functionMaps,
-      controlFlowGraphs,
-      linkingGraph
-    );
+    this._dependencies = dependencies
   }
 
   get path(): string {
@@ -132,27 +65,36 @@ export class Target {
     return this._name;
   }
 
-  getSources(targetPath: string): string {
-    return this._sources.get(targetPath);
+
+  get source(): string {
+    return this._source;
   }
 
-  getAST(targetPath: string): any {
-    return this._abstractSyntaxTrees.get(targetPath);
+  get abstractSyntaxTree(): any {
+    return this._abstractSyntaxTree;
   }
 
-  getContext(): TargetContext<ContractMetadata> {
+  get dependencies(): string[] {
+    return this._dependencies;
+  }
+
+  get context(): TargetContext<ContractMetadata> {
     return this._context;
   }
 
-  getFunctions(targetName: string): Map<string, any> {
-    return this._functions.get(targetName);
+  get functions(): Map<string, any> {
+    return this._functions;
   }
 
-  getCFG(targetName: string): any {
-    return this._controlFlowGraphs.get(targetName);
+  get controlFlowGraph(): CFG {
+    return this._controlFlowGraph;
   }
 
-  getLinkingGraph(): Graph<string> {
+  get linkingGraph(): Graph<string> {
     return this._linkingGraph;
+  }
+
+  get subject(): SearchSubject<AbstractTestCase> {
+    return this._subject;
   }
 }
